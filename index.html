@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distance Calculator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #FFA500; /* Orange background */
+            color: #333;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            margin: 40px auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #FF6347; /* Tomato color for heading */
+        }
+        input, select {
+            padding: 12px;
+            margin: 10px 0;
+            width: 100%;
+            border: 2px solid #FFA500;
+            border-radius: 25px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 12px 25px;
+            background-color: #FF6347;
+            color: white;
+            border: 2px solid #FF6347;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #FF4500;
+            border-color: #FF4500;
+        }
+        #result, #routeDetails {
+            margin-top: 20px;
+            background-color: #FFF5EE;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .route-details {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #FFF5EE;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Distance Calculator</h1>
+
+        <div id="apiKeyInput">
+            <input type="password" id="apiKey" placeholder="Enter your Google Maps API Key" autocomplete="off">
+            <button onclick="initializeMap()">Initialize Map</button>
+        </div>
+
+        <div id="calculator" style="display: none;">
+            <input type="text" id="origin" placeholder="Enter origin">
+            <input type="text" id="destination" placeholder="Enter destination">
+            <br>
+
+            <select id="travelMode">
+                <option value="DRIVING">Driving</option>
+                <option value="WALKING">Walking</option>
+                <option value="BICYCLING">Bicycling</option>
+                <option value="TRANSIT">Transit</option>
+            </select>
+
+            <br>
+
+            <label>
+                <input type="checkbox" id="avoidTolls"> Avoid Tolls
+            </label>
+
+            <br>
+
+            <button onclick="calculateDistance()">Calculate Distance</button>
+
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+
+        function initializeMap() {
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey) {
+                alert('Please enter a valid API key');
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=onMapLoad`;
+            document.body.appendChild(script);
+
+            // Clear the API key input
+            document.getElementById('apiKey').value = '';
+        }
+
+        function onMapLoad() {
+            document.getElementById('apiKeyInput').style.display = 'none';
+            document.getElementById('calculator').style.display = 'block';
+
+            map = new google.maps.Map(document.createElement('div'));
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+        }
+
+        function calculateDistance() {
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            const travelMode = document.getElementById('travelMode').value;
+            const avoidTolls = document.getElementById('avoidTolls').checked;
+
+            if (!origin || !destination) {
+                alert('Please enter both origin and destination');
+                return;
+            }
+
+            const request = {
+                origin: origin,
+                destination: destination,
+                travelMode: google.maps.TravelMode[travelMode],
+                avoidTolls: avoidTolls,
+                provideRouteAlternatives: true  // Request alternative routes
+            };
+
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    document.getElementById('result').innerHTML = generateRoutesHTML(result.routes);
+                    result.routes.forEach((route, index) => {
+                        document.getElementById(`routeDetails${index}`).innerHTML = generateRouteDetails([route]);
+                    });
+                } else {
+                    alert('Error calculating distance');
+                }
+            });
+        }
+
+        function generateRoutesHTML(routes) {
+            let html = '<h3>Possible Routes:</h3>';
+            routes.forEach((route, index) => {
+                const distance = route.legs[0].distance.text;
+                const duration = route.legs[0].duration.text;
+                html += `
+                    <div>
+                        <p><strong>Route ${index + 1}:</strong> Distance: ${distance}, Duration: ${duration}</p>
+                        <button onclick="toggleRouteDetails(${index})">Show Details</button>
+                        <div id="routeDetails${index}" class="route-details"></div>
+                    </div>`;
+            });
+            return html;
+        }
+
+        function generateRouteDetails(routes) {
+            let details = '<h4>Route Details:</h4>';
+            routes.forEach((route) => {
+                route.legs[0].steps.forEach((step, stepIndex) => {
+                    details += `<p>${stepIndex + 1}. ${step.instructions} (${step.distance.text})</p>`;
+                });
+            });
+            return details;
+        }
+
+        function toggleRouteDetails(index) {
+            const detailsDiv = document.getElementById(`routeDetails${index}`);
+            const button = event.target;
+            if (detailsDiv.style.display === 'none') {
+                detailsDiv.style.display = 'block';
+                button.textContent = 'Hide Details';
+            } else {
+                detailsDiv.style.display = 'none';
+                button.textContent = 'Show Details';
+            }
+        }
+    </script>
+</body>
+</html>
